@@ -1,6 +1,6 @@
-const userSchema = require("./userSchema");
+const userSchema = require("../models/user/userSchema");
 const bcrypt = require("bcrypt");
-const otpSchema = require("./otp/otpSchema");
+const otpSchema = require("../models/otp/otpSchema");
 const jwt = require("jsonwebtoken");
 const secret="secret_key"
 
@@ -137,54 +137,40 @@ const otpVerify = async (req, res) => {
 
   // User signIn 
 
+  const userSignIn = async (req, res) => {
+    const { emailOrPhone, password } = req.body;
   
-
-const userSignIn = async (req, res) => {
-  const { emailOrPhone, password } = req.body;
-
-  try {
-    // Check if user exists based on email or phone
-    const user = await userSchema.findOne(
-      /\S+@\S+\.\S+/.test(emailOrPhone) ? { email: emailOrPhone } : { phone: emailOrPhone }
-    );
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // Generate JWT access token
-    const accessToken = jwt.sign(
-      { userId: user._id, email: user.email, phone: user.phone },
-      "secret_key",
-      { expiresIn: "1h" } // Set expiration time as needed
-    );
-
-    // Optional: Generate a verification token if the user is not verified
-    let verificationToken;
-    if (!user.isVerified) {
-      verificationToken = jwt.sign(
-        { userId: user._id },
-        secret,
-        { expiresIn: "10m" } // Token expires in 10 minutes
+    try {
+      // Find the user by email or phone
+      const user = await userSchema.findOne(
+        /\S+@\S+\.\S+/.test(emailOrPhone) ? { email: emailOrPhone } : { phone: emailOrPhone }
       );
+  
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
+  
+      // Generate JWT token
+      const accessToken = jwt.sign(
+        { userId: user._id }, // Payload with user ID
+        secret, // Secret key
+        { expiresIn: "1h" } // Token expiration
+      );
+  
+      return res.status(200).json({ accessToken, message: "Login successful" });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "An error occurred during login" });
     }
+  };
 
-    return res.status(200).json({
-      message: "Sign-in successful",
-      accessToken,
-      verificationToken: user.isVerified ? null : verificationToken, // Only send if not verified
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Server error, please try again later." });
-  }
-};
+
 
   
   
